@@ -1,2 +1,2 @@
 # Colton's Codeforces Repo
-Hold my codeforces solutions
+Holds my codeforces solutions
