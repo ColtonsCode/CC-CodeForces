@@ -1,8 +1,9 @@
 # Filename: cf_util.py
 # Author: Colton Roe
 # Created: 6/29/2025
-# Description: Codeforces utility: A console utility for managing Codeforces problem solutions.
+# Description: Codeforces utility, a console utility for managing Codeforces problem solutions.
 
+from io import TextIOWrapper
 import subprocess
 import argparse
 import os
@@ -108,34 +109,41 @@ def merge_custom_headers(problem_file_path: str, output_file_path: str) -> None:
     """
     # Open both files at the top level to avoid double indentation
     with open(problem_file_path, 'r') as problem_file, open(output_file_path, 'w') as output_file:
-        for line in problem_file:
-            if not line.startswith('#include "'):
-                output_file.write(line)
-                continue
-
-            header_path = os.path.join(INCLUDE_PATH, line.strip().split('"')[1])
-            if not os.path.isfile(header_path):
-                print(f"Warning: Header file {header_path} not found in {INCLUDE_PATH}.")
-                continue
-
-            with open(header_path, 'r') as header_file:
-                output_file.write(f'//BEGIN:{header_path.capitalize()}\n'
-                                  + header_file.read() 
-                                  + f'\n//END:{header_path.capitalize()}\n')
-
-            # If there is an accompanying c file in lib, merge that now, too
-            # It will be in the lib path with the same name as the header
-            header_name = os.path.basename(header_path)
-
-            # Check if the corresponding c file exists
-            c_file_path = os.path.join(LIBRARY_PATH, header_name.replace(".h", ".c"))
-            if os.path.isfile(c_file_path):
-                with open(c_file_path, 'r') as c_file:
-                    output_file.write(f'\n//BEGIN:{c_file_path.capitalize()}\n' 
-                                      + c_file.read() 
-                                      + f'\n//END:{c_file_path.capitalize()}\n')
-
+        merge_file_helper(problem_file, output_file, [])
+            
     print(f"Merged custom headers into: {output_file_path}")
+
+def merge_file_helper(file_to_merge : TextIOWrapper, 
+                        output_file : TextIOWrapper, 
+                        seen_headers : list[str]) -> None:
+    """
+    Helper function to recursively merge headers, avoiding infinite loops.
+    """
+    for line in file_to_merge:
+        if line.startswith('#include "'):
+            header_name = line.strip().split('"')[1]
+            if header_name in seen_headers:
+                continue
+            
+            seen_headers.append(header_name)
+            header_path = os.path.join(INCLUDE_PATH, header_name)
+            if os.path.isfile(header_path):
+                with open(header_path, 'r') as header_file:
+                    output_file.write(f"\n//BEGIN HEADER: {header_name}\n")
+                    merge_file_helper(header_file, output_file, seen_headers)
+                    output_file.write(f"\n//END HEADER: {header_name}\n")
+                    
+                # Not that the header is written we can write the C file.
+                c_file_path = os.path.join (LIBRARY_PATH, header_name.replace('.h', '.c'))
+                if os.path.isfile(c_file_path):
+                    with open(c_file_path, 'r') as c_file:
+                        output_file.write(f"\n//BEGIN C FILE: {c_file_path}\n")
+                        merge_file_helper(c_file, output_file, seen_headers)
+                        output_file.write(f"\n//END C FILE: {c_file_path}\n")
+            else:
+                print(f"Warning: Header file {header_path} not found in {INCLUDE_PATH}.")
+        else:
+            output_file.write(line)
 
 if __name__ == "__main__":
     main()
