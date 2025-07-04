@@ -1,6 +1,7 @@
 #include "test_header.h"
 
-int main() {
+int main()
+{
     print_hello();
     return 0;
 }
