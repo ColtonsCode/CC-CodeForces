@@ -12,7 +12,7 @@ int main(void)
     scanf("%d", &n);
 
     char str[101];
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i <= n; ++i)
     {
         fgets(str, sizeof(str), stdin);
 
@@ -22,7 +22,7 @@ int main(void)
             abbreviate(str, sizeof(str));
         }
 
-        printf(str);
+        printf("%s", str);
     }
 
     return 0;

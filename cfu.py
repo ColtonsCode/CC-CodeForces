@@ -10,7 +10,6 @@ import os
 
 COMPILER_COMMAND = "gcc"
 COMPILER_FLAGS = ""
-
 PROBLEMS_PATH = r".\\problems"
 LIBRARY_PATH = r".\\lib"
 INCLUDE_PATH = os.path.join(LIBRARY_PATH, "include")
@@ -33,15 +32,25 @@ def main() -> None:
     new_parser = subparsers.add_parser("new", help="Create a new problem folder")
     new_parser.add_argument("problem_name", help="Name of the new problem folder")
 
-    build_parser = subparsers.add_parser("build", help="Build the problem file")
-    build_parser.add_argument("problem_file_path", help="Path to the file to build")
+    build_parser = subparsers.add_parser("build", help="Build the problem code")
+    build_parser.add_argument("problem_name", help="Name of the problem")
+
+    exclusive_flags = build_parser.add_mutually_exclusive_group()
+
+    exclusive_flags.add_argument("-r", "--run",
+                                 action="store_true",
+                                 help="Run the compiled executable after building")
+    exclusive_flags.add_argument("-i", "--pipe_input",
+                                 action="store_true",
+                                 help="Run the compiled executable and pipe input to the program" \
+                                      " from input.txt")
 
     args = parser.parse_args()
 
     if args.command == "new":
         new_problem_command(args.problem_name)
     elif args.command == "build":
-        build_problem_command(args.problem_file_path)
+        build_problem_command(args.problem_name, args.run, args.pipe_input)
 
 def new_problem_command(problem_name: str) -> None:
     """
@@ -55,10 +64,12 @@ def new_problem_command(problem_name: str) -> None:
     os.makedirs(os.path.join(PROBLEMS_PATH, problem_name), exist_ok=True)
     print(f"Created new problem folder: {problem_name}")
 
-def build_problem_command(problem_file_path: str) -> None:
+def build_problem_command(problem_name: str, run: bool, pipe_input: bool) -> None:
     """
     Builds the specified problem file by merging custom headers and compiling it.
     """
+    problem_file_path: str = os.path.abspath(PROBLEMS_PATH + os.sep + problem_name + os.sep + "main.c")
+
     # If its not already an absolute path, convert it to one
     if not os.path.isabs(problem_file_path):
         problem_file_path = os.path.abspath(problem_file_path)
@@ -78,8 +89,6 @@ def build_problem_command(problem_file_path: str) -> None:
         os.makedirs(BUILD_PATH)
         print(f"Created build directory: {BUILD_PATH}")
 
-    # Create a string to store the name of the file without the extension
-    problem_name: str = os.path.splitext(os.path.basename(problem_file_path))[0]
     executable_path: str = os.path.join(BUILD_PATH, problem_name + ".exe")
 
     print(f"Building file: {problem_file_path}")
@@ -100,6 +109,18 @@ def build_problem_command(problem_file_path: str) -> None:
         print(f"Build successful: {executable_path}")
     else:
         print(f"Build failed with error:\n{result.stderr}")
+
+    # If the run flag is set, execute the compiled program
+    if run:
+        subprocess.run([executable_path])
+    if pipe_input:
+        input_file_path = os.path.join(PROBLEMS_PATH, problem_name, "input.txt")
+        if os.path.isfile(input_file_path):
+            with open(input_file_path, 'r') as input_file:
+                subprocess.run([executable_path], stdin=input_file)
+        else:
+            print(f"Warning: Input file {input_file_path} not found. Skipping input piping.")
+    
 
 def merge_include_files(problem_file_path: str, output_file_path: str) -> None:
     """
